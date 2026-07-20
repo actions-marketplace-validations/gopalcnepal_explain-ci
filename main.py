@@ -16,6 +16,15 @@ def gha_notice(message: str) -> None:
     print(f"::notice::{message}")
 
 
+def gha_warning(message: str) -> None:
+    """Print a GitHub Actions warning command.
+
+    Args:
+        message: Text to display as a workflow warning.
+    """
+    print(f"::warning::{message}")
+
+
 def gha_group_start(title: str) -> None:
     """Start a GitHub Actions log group.
 
@@ -61,7 +70,7 @@ def write_action_outputs(outputs: dict[str, str]) -> None:
                 handle.write(f"{key}={text}\n")
 
 
-def main() -> int:
+def run() -> int:
     """Main orchestration function.
 
     Coordinates all steps: fetch logs, parse, analyze with LLM,
@@ -181,6 +190,36 @@ def main() -> int:
 
     gha_notice("AI CI Error Explainer completed")
     return 0
+
+
+def main() -> int:
+    """Entry point that shields the caller's pipeline from failures.
+
+    Any unexpected error becomes a ::warning:: plus safe outputs so the
+    action never breaks CI. Set the fail_on_error input to 'true' to
+    propagate a non-zero exit code instead.
+
+    Returns:
+        Exit code (0 unless an error occurred and fail_on_error is true).
+    """
+    try:
+        return run()
+    except Exception as exc:
+        # Reads the env directly so this handler works even when
+        # configuration loading is the step that failed.
+        gha_warning(f"explain-ci failed: {exc}")
+        write_action_outputs(
+            {
+                "explanation_markdown": f"explain-ci could not analyze this run: {exc}",
+                "comment_target": "error",
+                "comment_posted": "false",
+                "pr_number": "",
+            }
+        )
+        fail_on_error = (
+            os.environ.get("INPUT_FAIL_ON_ERROR", "").strip().lower() == "true"
+        )
+        return 1 if fail_on_error else 0
 
 
 if __name__ == "__main__":

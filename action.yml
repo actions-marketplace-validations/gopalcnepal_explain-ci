@@ -30,12 +30,17 @@ inputs:
     required: false
     default: '1000'
 
+  fail_on_error:
+    description: 'Set to true to fail this job when explain-ci itself errors. Default false: errors become a warning and the pipeline is never broken.'
+    required: false
+    default: 'false'
+
 outputs:
   explanation_markdown:
     description: 'Model-generated markdown explanation for the failed CI job.'
     value: ${{ steps.analyze.outputs.explanation_markdown }}
   comment_target:
-    description: 'Where comment posting was attempted: pr, commit, none, stale_skipped, or *_post_failed.'
+    description: 'Where comment posting was attempted: pr, commit, none, stale_skipped, error, or *_post_failed.'
     value: ${{ steps.analyze.outputs.comment_target }}
   comment_posted:
     description: 'Whether a PR comment was successfully posted.'
@@ -69,6 +74,7 @@ runs:
         INPUT_PROVIDER:     ${{ inputs.provider }}
         INPUT_BASE_URL:     ${{ inputs.base_url }}
         INPUT_LOG_LINES:    ${{ inputs.log_lines }}
+        INPUT_FAIL_ON_ERROR: ${{ inputs.fail_on_error }}
         GITHUB_TOKEN:       ${{ github.token }}
         GITHUB_REPOSITORY:  ${{ github.repository }}
         GITHUB_RUN_ID:      ${{ github.run_id }}
