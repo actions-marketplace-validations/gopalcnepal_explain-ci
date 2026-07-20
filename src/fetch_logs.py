@@ -18,7 +18,8 @@ def get_workflow_failure_data(
 
     Returns:
         Dictionary with keys:
-        - status: 'ok', 'stale_run', 'no_failed_job', or 'invalid_job_id'
+        - status: 'ok', 'stale_run', 'pr_run_exists', 'no_failed_job',
+          or 'invalid_job_id'
         - run_data: Full run JSON from GitHub API
         - headers: API headers for subsequent requests
         - raw_log: (if status='ok') Raw job log text
@@ -73,7 +74,7 @@ def get_workflow_failure_data(
             open_prs = pr_search_resp.json()
             if open_prs and isinstance(open_prs, list) and len(open_prs) > 0:
                 return {
-                    "status": "stale_run",
+                    "status": "pr_run_exists",
                     "run_data": run_data,
                     "headers": headers,
                 }

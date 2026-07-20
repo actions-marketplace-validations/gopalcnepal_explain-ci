@@ -39,8 +39,7 @@ def get_runtime_config() -> dict[str, Any]:
 
     Returns:
         Dictionary with keys: api_key, model, provider, base_url,
-        github_token, repo, run_id, event_name, sha, pr_number,
-        log_lines.
+        github_token, repo, run_id, pr_number, log_lines.
     """
     provider = os.environ.get("INPUT_PROVIDER", "openai").strip().lower()
     custom_base_url = os.environ.get("INPUT_BASE_URL", "").strip()
@@ -53,8 +52,6 @@ def get_runtime_config() -> dict[str, Any]:
         "github_token": os.environ.get("GITHUB_TOKEN", "").strip(),
         "repo": os.environ.get("GITHUB_REPOSITORY", "").strip(),
         "run_id": os.environ.get("GITHUB_RUN_ID", "").strip(),
-        "event_name": os.environ.get("GITHUB_EVENT_NAME", "").strip(),
-        "sha": os.environ.get("GITHUB_SHA", "").strip(),
         "pr_number": os.environ.get("PR_NUMBER", "").strip(),
         "log_lines": _parse_log_lines(os.environ.get("INPUT_LOG_LINES", "").strip()),
     }

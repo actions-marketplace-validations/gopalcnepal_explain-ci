@@ -39,7 +39,7 @@ permissions:
 | Output | Description |
 |---|---|
 | `explanation_markdown` | LLM explanation markdown |
-| `comment_target` | `pr`, `commit`, `none`, `stale_skipped`, `error`, or `*_post_failed` |
+| `comment_target` | `pr`, `commit`, `none`, `stale_skipped`, `pr_run_exists`, `error`, or `*_post_failed` |
 | `comment_posted` | `true` or `false` |
 | `pr_number` | Resolved PR number if available |
 
@@ -47,7 +47,6 @@ permissions:
 
 ⚠️ **CRITICAL**: explain-ci must run as a **separate job** (not a step in the failing job). This ensures:
 - The failed job's log is finalized and queryable via GitHub API
-- Multiple failed jobs in the same workflow are handled correctly
 - The action can run with appropriate timeout and error handling
 
 ## Quickstart: Separate Job Pattern
@@ -91,7 +90,7 @@ Key points:
 - `explain-failure` job has `needs: test` (depends on the test job)
 - Uses `if: always()` so it runs whether test passed or failed
 - Placed **after** all jobs you want to analyze
-- explain-ci will detect failures from any job in the workflow
+- explain-ci analyzes the **first failed job** it finds in the workflow run
 
 ## Provider Examples
 
@@ -164,7 +163,7 @@ explain-failure:
 - **PR Comment Deduplication**: If the same commit is tested in both a `pull_request` event (PR) and a `push` event, only the PR run comments to avoid duplicates.
 - **Comment Updates on Re-runs**: Each comment embeds a hidden `<!-- explain-ci -->` marker. On re-runs the existing comment is updated in place instead of posting a new one.
 - **Comment Target**: If a PR exists for the commit, explains comment on the PR. Otherwise, comments on the commit directly.
-- **Stale Run Protection**: Only the latest workflow run on a branch+event pair comments, preventing duplicate explanations from reruns.
+- **Stale Run Protection**: Only the latest run of the same workflow on a branch+event pair comments, preventing duplicate explanations from reruns.
 - **API Key Security**: Your API key is automatically masked in GitHub Actions logs to prevent accidental exposure.
 - **Never Fails Your Pipeline**: If explain-ci itself errors (GitHub API, LLM provider, etc.), it emits a workflow warning and exits 0. Set `fail_on_error: true` to make such errors fail the job instead.
 
