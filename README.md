@@ -31,6 +31,7 @@ permissions:
 | `model` | No | `gpt-4o-mini` | Model name |
 | `provider` | No | `openai` | Provider shorthand (`openai`, `claude`, `gemini`, `openrouter`, etc.) |
 | `base_url` | No | `""` | Custom OpenAI-compatible endpoint; overrides provider mapping |
+| `log_lines` | No | `1000` | Max log lines kept per extracted section (tail is kept) |
 
 ## Outputs
 

@@ -132,7 +132,7 @@ def main() -> int:
     try:
         parsed_data = parse_log_sections(
             failure_data["raw_log"],
-            config["default_log_length"],
+            config["log_lines"],
         )
         gha_notice("Log parsing completed")
     finally:
