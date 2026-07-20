@@ -8,8 +8,8 @@ def get_workflow_failure_data(
 ) -> dict[str, Any]:
     """Fetch failure data from GitHub API.
 
-    Detects stale runs (when newer run exists on same branch/event)
-    to prevent commenting on outdated commits.
+    Detects stale runs (when a newer run of the same workflow exists on
+    the same branch/event) to prevent commenting on outdated commits.
 
     Args:
         repo: Repository in format 'owner/repo'.
@@ -34,15 +34,19 @@ def get_workflow_failure_data(
     run_resp.raise_for_status()
     run_data = run_resp.json()
 
-    # Skip stale runs: only the newest run on the same branch+event should comment.
+    # Skip stale runs: only the newest run of the same workflow on the same
+    # branch+event should comment. Scope the query to this run's workflow_id;
+    # /actions/runs returns runs from ALL workflows, which would flag this run
+    # as stale whenever any other workflow ran more recently.
     branch = run_data.get("head_branch")
     event = run_data.get("event")
+    workflow_id = run_data.get("workflow_id")
     current_run_id = int(run_data.get("id") or 0)
     commit_sha = run_data.get("head_sha", "").strip()
-    
-    if branch and event and current_run_id:
+
+    if branch and event and workflow_id and current_run_id:
         latest_url = (
-            f"https://api.github.com/repos/{repo}/actions/runs"
+            f"https://api.github.com/repos/{repo}/actions/workflows/{workflow_id}/runs"
             f"?branch={branch}&event={event}&per_page=1"
         )
         latest_resp = requests.get(latest_url, headers=headers, timeout=30)
