@@ -32,13 +32,14 @@ permissions:
 | `provider` | No | `openai` | Provider shorthand (`openai`, `claude`, `gemini`, `openrouter`, etc.) |
 | `base_url` | No | `""` | Custom OpenAI-compatible endpoint; overrides provider mapping |
 | `log_lines` | No | `1000` | Max log lines kept per extracted section (tail is kept) |
+| `fail_on_error` | No | `false` | Fail the job if explain-ci itself errors (default: warn and exit 0) |
 
 ## Outputs
 
 | Output | Description |
 |---|---|
 | `explanation_markdown` | LLM explanation markdown |
-| `comment_target` | `pr`, `commit`, `none`, `stale_skipped`, or `*_post_failed` |
+| `comment_target` | `pr`, `commit`, `none`, `stale_skipped`, `error`, or `*_post_failed` |
 | `comment_posted` | `true` or `false` |
 | `pr_number` | Resolved PR number if available |
 
@@ -164,6 +165,7 @@ explain-failure:
 - **Comment Target**: If a PR exists for the commit, explains comment on the PR. Otherwise, comments on the commit directly.
 - **Stale Run Protection**: Only the latest workflow run on a branch+event pair comments, preventing duplicate explanations from reruns.
 - **API Key Security**: Your API key is automatically masked in GitHub Actions logs to prevent accidental exposure.
+- **Never Fails Your Pipeline**: If explain-ci itself errors (GitHub API, LLM provider, etc.), it emits a workflow warning and exits 0. Set `fail_on_error: true` to make such errors fail the job instead.
 
 ## Security & Best Practices
 
