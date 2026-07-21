@@ -162,6 +162,7 @@ explain-failure:
 ## Behavior Notes
 
 - **PR Comment Deduplication**: If the same commit is tested in both a `pull_request` event (PR) and a `push` event, only the PR run comments to avoid duplicates.
+- **Comment Updates on Re-runs**: Each comment embeds a hidden `<!-- explain-ci -->` marker. On re-runs the existing comment is updated in place instead of posting a new one.
 - **Comment Target**: If a PR exists for the commit, explains comment on the PR. Otherwise, comments on the commit directly.
 - **Stale Run Protection**: Only the latest workflow run on a branch+event pair comments, preventing duplicate explanations from reruns.
 - **API Key Security**: Your API key is automatically masked in GitHub Actions logs to prevent accidental exposure.
