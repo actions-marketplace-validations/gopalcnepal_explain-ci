@@ -2,19 +2,38 @@ import re
 from typing import Any
 
 
+def _tail(lines: list[str], max_lines: int) -> str:
+    """Join lines, keeping only the last max_lines entries.
+
+    Errors cluster at the end of a section, so the tail is the part
+    worth sending to the LLM.
+
+    Args:
+        lines: Log lines for one section.
+        max_lines: Maximum number of lines to keep.
+
+    Returns:
+        Joined and stripped text of at most max_lines lines.
+    """
+    if len(lines) > max_lines:
+        lines = lines[-max_lines:]
+    return "\n".join(lines).strip()
+
+
 def parse_log_sections(
     raw_log: str,
-    default_log_length: int | None = None,
+    max_lines: int | None = None,
 ) -> dict[str, str]:
     """Parse error sections from raw GitHub Actions logs.
 
     Attempts to extract structured sections using GitHub log markers
     (##[group], ##[endgroup], ##[error]). Falls back to last N lines
-    if markers not found.
+    if markers not found. Every section is capped at max_lines
+    (keeping the tail) so the LLM prompt stays bounded.
 
     Args:
         raw_log: Raw job log text from GitHub API.
-        default_log_length: Number of lines to use in fallback.
+        max_lines: Maximum lines kept per section (default 1000).
 
     Returns:
         Dictionary with keys:
@@ -22,8 +41,8 @@ def parse_log_sections(
         - actual_error: Error output between step and ##[error]
         - github_error: Runner status from ##[error] onward
     """
-    if default_log_length is None:
-        default_log_length = 1000
+    if max_lines is None or max_lines <= 0:
+        max_lines = 1000
     cleaned = re.sub(
         r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s",
         "",
@@ -39,14 +58,13 @@ def parse_log_sections(
             break
 
     if error_idx == -1:
-        fallback_lines = lines[-default_log_length:]
         return {
             "step_context": "No formal group block detected.",
             "actual_error": (
                 "No explicit ##[error] tag found. Providing the last "
-                f"{default_log_length} lines of execution."
+                f"{max_lines} lines of execution."
             ),
-            "github_error": "\n".join(fallback_lines).strip(),
+            "github_error": _tail(lines, max_lines),
         }
 
     endgroup_idx = 0
@@ -68,7 +86,7 @@ def parse_log_sections(
             break
 
     return {
-        "step_context": "\n".join(lines[group_idx : endgroup_idx + 1]).strip(),
-        "actual_error": "\n".join(lines[endgroup_idx + 1 : error_idx]).strip(),
-        "github_error": "\n".join(lines[error_idx:cleanup_idx]).strip(),
+        "step_context": _tail(lines[group_idx : endgroup_idx + 1], max_lines),
+        "actual_error": _tail(lines[endgroup_idx + 1 : error_idx], max_lines),
+        "github_error": _tail(lines[error_idx:cleanup_idx], max_lines),
     }

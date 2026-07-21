@@ -25,6 +25,11 @@ inputs:
     required: false
     default: ''
 
+  log_lines:
+    description: 'Maximum log lines kept per extracted section (the tail is kept, since errors cluster at the end).'
+    required: false
+    default: '1000'
+
 outputs:
   explanation_markdown:
     description: 'Model-generated markdown explanation for the failed CI job.'
@@ -63,6 +68,7 @@ runs:
         INPUT_MODEL:        ${{ inputs.model }}
         INPUT_PROVIDER:     ${{ inputs.provider }}
         INPUT_BASE_URL:     ${{ inputs.base_url }}
+        INPUT_LOG_LINES:    ${{ inputs.log_lines }}
         GITHUB_TOKEN:       ${{ github.token }}
         GITHUB_REPOSITORY:  ${{ github.repository }}
         GITHUB_RUN_ID:      ${{ github.run_id }}
