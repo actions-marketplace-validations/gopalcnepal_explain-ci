@@ -125,6 +125,18 @@ def run() -> int:
         )
         return 0
 
+    if failure_data["status"] == "pr_run_exists":
+        gha_notice("Open PR exists for this commit; the pull_request run will comment")
+        write_action_outputs(
+            {
+                "explanation_markdown": "Skipped push run; the pull_request run comments instead.",
+                "comment_target": "pr_run_exists",
+                "comment_posted": "false",
+                "pr_number": "",
+            }
+        )
+        return 0
+
     if failure_data["status"] != "ok":
         gha_notice("No failed job found; skipping analysis")
         write_action_outputs(
