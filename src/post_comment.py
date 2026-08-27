@@ -2,6 +2,64 @@ import requests
 from typing import Any
 
 
+COMMENT_MARKER = "<!-- explain-ci -->"
+
+
+def _find_marker_comment_id(list_url: str, headers: dict[str, Any]) -> int | None:
+    """Find an existing explain-ci comment by its hidden marker.
+
+    Args:
+        list_url: GitHub API URL that lists comments for a PR or commit.
+        headers: GitHub API headers (with auth and Accept).
+
+    Returns:
+        Comment id when a comment containing COMMENT_MARKER exists,
+        otherwise None (including on listing errors).
+    """
+    resp = requests.get(f"{list_url}?per_page=100", headers=headers, timeout=30)
+    if resp.status_code != 200:
+        return None
+    for comment in resp.json():
+        if COMMENT_MARKER in (comment.get("body") or ""):
+            comment_id = comment.get("id")
+            if isinstance(comment_id, int):
+                return comment_id
+    return None
+
+
+def _upsert_comment(
+    list_url: str,
+    edit_url_base: str,
+    headers: dict[str, Any],
+    body: str,
+) -> bool:
+    """Create the explain-ci comment, or update it when one exists.
+
+    Keeps re-runs from stacking duplicate comments: the existing
+    marker comment is PATCHed in place instead of POSTing a new one.
+
+    Args:
+        list_url: URL that lists (and creates) comments for the target.
+        edit_url_base: URL prefix for editing a comment by id.
+        headers: GitHub API headers (with auth and Accept).
+        body: Full comment body including COMMENT_MARKER.
+
+    Returns:
+        True when the comment was created or updated successfully.
+    """
+    existing_id = _find_marker_comment_id(list_url, headers)
+    if existing_id is not None:
+        resp = requests.patch(
+            f"{edit_url_base}/{existing_id}",
+            headers=headers,
+            json={"body": body},
+            timeout=30,
+        )
+        return resp.status_code == 200
+    resp = requests.post(list_url, headers=headers, json={"body": body}, timeout=30)
+    return resp.status_code == 201
+
+
 def publish_comment(
     repo: str,
     headers: dict[str, Any],
@@ -12,6 +70,8 @@ def publish_comment(
     """Post explanation comment to PR or commit.
 
     Routes comment based on PR availability and validates staleness.
+    Comments carry a hidden marker so re-runs update the existing
+    explain-ci comment instead of posting a duplicate.
 
     Args:
         repo: Repository in format 'owner/repo'.
@@ -26,6 +86,8 @@ def publish_comment(
         - comment_posted: 'true' or 'false'
         - pr_number: PR number if applicable, empty otherwise
     """
+    body = f"{COMMENT_MARKER}\n{markdown_body}"
+
     run_head_sha = (run_data.get("head_sha") or "").strip()
     if not run_head_sha:
         return {
@@ -58,29 +120,27 @@ def publish_comment(
                 "pr_number": str(pr_number),
             }
 
-        comment_url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
-        comment_resp = requests.post(
-            comment_url,
-            headers=headers,
-            json={"body": markdown_body},
-            timeout=30,
+        posted = _upsert_comment(
+            f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments",
+            f"https://api.github.com/repos/{repo}/issues/comments",
+            headers,
+            body,
         )
         return {
-            "comment_target": "pr" if comment_resp.status_code == 201 else "pr_post_failed",
-            "comment_posted": "true" if comment_resp.status_code == 201 else "false",
+            "comment_target": "pr" if posted else "pr_post_failed",
+            "comment_posted": "true" if posted else "false",
             "pr_number": str(pr_number),
         }
 
     # No PR associated: comment on the run head commit.
-    commit_url = f"https://api.github.com/repos/{repo}/commits/{run_head_sha}/comments"
-    commit_resp = requests.post(
-        commit_url,
-        headers=headers,
-        json={"body": markdown_body},
-        timeout=30,
+    posted = _upsert_comment(
+        f"https://api.github.com/repos/{repo}/commits/{run_head_sha}/comments",
+        f"https://api.github.com/repos/{repo}/comments",
+        headers,
+        body,
     )
     return {
-        "comment_target": "commit" if commit_resp.status_code == 201 else "commit_post_failed",
-        "comment_posted": "true" if commit_resp.status_code == 201 else "false",
+        "comment_target": "commit" if posted else "commit_post_failed",
+        "comment_posted": "true" if posted else "false",
         "pr_number": "",
     }

@@ -8,8 +8,8 @@ def get_workflow_failure_data(
 ) -> dict[str, Any]:
     """Fetch failure data from GitHub API.
 
-    Detects stale runs (when newer run exists on same branch/event)
-    to prevent commenting on outdated commits.
+    Detects stale runs (when a newer run of the same workflow exists on
+    the same branch/event) to prevent commenting on outdated commits.
 
     Args:
         repo: Repository in format 'owner/repo'.
@@ -18,7 +18,8 @@ def get_workflow_failure_data(
 
     Returns:
         Dictionary with keys:
-        - status: 'ok', 'stale_run', 'no_failed_job', or 'invalid_job_id'
+        - status: 'ok', 'stale_run', 'pr_run_exists', 'no_failed_job',
+          or 'invalid_job_id'
         - run_data: Full run JSON from GitHub API
         - headers: API headers for subsequent requests
         - raw_log: (if status='ok') Raw job log text
@@ -34,15 +35,19 @@ def get_workflow_failure_data(
     run_resp.raise_for_status()
     run_data = run_resp.json()
 
-    # Skip stale runs: only the newest run on the same branch+event should comment.
+    # Skip stale runs: only the newest run of the same workflow on the same
+    # branch+event should comment. Scope the query to this run's workflow_id;
+    # /actions/runs returns runs from ALL workflows, which would flag this run
+    # as stale whenever any other workflow ran more recently.
     branch = run_data.get("head_branch")
     event = run_data.get("event")
+    workflow_id = run_data.get("workflow_id")
     current_run_id = int(run_data.get("id") or 0)
     commit_sha = run_data.get("head_sha", "").strip()
-    
-    if branch and event and current_run_id:
+
+    if branch and event and workflow_id and current_run_id:
         latest_url = (
-            f"https://api.github.com/repos/{repo}/actions/runs"
+            f"https://api.github.com/repos/{repo}/actions/workflows/{workflow_id}/runs"
             f"?branch={branch}&event={event}&per_page=1"
         )
         latest_resp = requests.get(latest_url, headers=headers, timeout=30)
@@ -69,7 +74,7 @@ def get_workflow_failure_data(
             open_prs = pr_search_resp.json()
             if open_prs and isinstance(open_prs, list) and len(open_prs) > 0:
                 return {
-                    "status": "stale_run",
+                    "status": "pr_run_exists",
                     "run_data": run_data,
                     "headers": headers,
                 }
